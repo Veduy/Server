@@ -25,53 +25,28 @@ int main()
 
 	connect(serverSocket, (sockaddr*)&serverSockAddr, sizeof(serverSockAddr));	
 	
-	srand(time(nullptr));
-
 	std::string input;
 
 	while (true)
 	{
-		int totalSent = 0;
+		std::getline(std::cin, input);
 
-		std::cin >> input;
-		int value = 0;
-		try 
-		{
-			value = std::stol(input);
-			
-			if (value > (std::numeric_limits<int>::max)())
-			{
-				continue;
-			}
-			else
-			{
-				value = htonl(value);
-			}
-		}
-		catch (const std::out_of_range&)
-		{
-			printf("out_of_range\n");
-			continue;
-		}
-		catch (const std::invalid_argument&)
-		{
-			printf("invalid argument\n");
-			continue;
-		}
-
-		int packetSize = sizeof(value);
+		int valueSize = input.size();
+		int netSize = htonl(valueSize);
 		
-		char packet[sizeof(packetSize) + sizeof(value)];
-		memcpy(packet, &packetSize, sizeof(packetSize));
-		memcpy(packet + sizeof(packetSize), &value, sizeof(value));
+		/*패킷 버퍼*/
+		std::vector<char> packet(sizeof(netSize) + valueSize);
+		memcpy(packet.data(), &netSize, sizeof(netSize));
+		memcpy(packet.data() + sizeof(netSize), input.data(), valueSize);
 
-		while (totalSent < packetSize + sizeof(value))
+		int totalSent = 0;
+		int packetSize = packet.size();
+		while (totalSent < packetSize)
 		{
-			int sentBytes = send(serverSocket, (char*)(packet + totalSent), sizeof(packet) - totalSent, 0);
+			int sentBytes = send(serverSocket, packet.data() + totalSent, packetSize - totalSent, 0);
 
 			if (sentBytes <= 0)
 			{
-				// 에러
 				return false;
 			}
 			

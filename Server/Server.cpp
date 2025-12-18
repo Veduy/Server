@@ -120,13 +120,16 @@ int main()
 				/*데이터 누적해서 받기*/ 
 				// recvBytes가 5라면, [0][1][2][3][4][?][?][?]...[?] 이렇게 데이터가 있을거고,
 				// 복사할 데이터의 first 0x1234
-				// 복사할 데이터의 last   0x1239
+				// 복사할 데이터의 last  0x1239
 				// last 포함 안됨, 범위표현은 항상 반열린 구간 [start, end))
 				session.recvBuffer.insert(session.recvBuffer.end(), temp, temp + recvBytes);
 
+				/*
+					[][][][]	value size(int)
+					[][][]..[]	value(string)
+				*/
 				while (true)
 				{
-					// 약속한 처음 [][][][] 4바이트가 packetSize인데, 그만큼 데이터가 안왔으면 break;
 					if (session.recvBuffer.size() < sizeof(int))
 					{
 						break;
@@ -134,22 +137,20 @@ int main()
 
 					// memmove는 데이터가 겹칠때, memcpy는 안 겹칠때
 					// memmove 뒤->앞, 앞->뒤, memcpy 무조건 앞에서부터
-					int packetSize = 0;
-					memmove(&packetSize, session.recvBuffer.data(), sizeof(int));
-					memcpy(&packetSize, session.recvBuffer.data(), sizeof(int));
+					int messageSize = 0;
+					memcpy(&messageSize, session.recvBuffer.data(), sizeof(int));
+					messageSize = ntohl(messageSize);
 
-					if (session.recvBuffer.size() < sizeof(int) + packetSize)
+					if (session.recvBuffer.size() < sizeof(int) + messageSize)
 					{
 						break;
 					}
 
-					int value = 0;
-					memcpy(&value, session.recvBuffer.data() + sizeof(int), packetSize);
-					value = ntohl(value);
+					std::string message(session.recvBuffer.data() + sizeof(int), messageSize);
 
-					printf("received value: %d\n", value);
+					printf("%s\n", message.c_str());
 
-					session.recvBuffer.erase(session.recvBuffer.begin(), session.recvBuffer.begin() + sizeof(int) + packetSize
+					session.recvBuffer.erase(session.recvBuffer.begin(), session.recvBuffer.begin() + sizeof(int) + messageSize
 					);
 				}
 			}
