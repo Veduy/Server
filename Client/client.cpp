@@ -5,6 +5,7 @@
 #include <WinSock2.h>
 #include <string>
 #include <vector>
+#include <limits>
 
 #pragma comment(lib, "ws2_32")
 
@@ -26,12 +27,51 @@ int main()
 	
 	srand(time(nullptr));
 
-	int value = 0;
+	std::string input;
 
 	while (true)
 	{
-		std::cin >> value;
-		send(serverSocket, (char*)&value, sizeof(value), 0);
+		int totalSent = 0;
+
+		std::cin >> input;
+		int value = 0;
+		try 
+		{
+			value = std::stol(input);
+			if (value > (std::numeric_limits<int>::max)())
+			{
+				continue;
+			}
+		}
+		catch (const std::out_of_range&)
+		{
+			printf("out_of_range\n");
+			continue;
+		}
+		catch (const std::invalid_argument&)
+		{
+			printf("invalid argument\n");
+			continue;
+		}
+
+		int packetSize = sizeof(value);
+		
+		char packet[sizeof(packetSize) + sizeof(value)];
+		memcpy(packet, &packetSize, sizeof(packetSize));
+		memcpy(packet + sizeof(packetSize), &value, sizeof(value));
+
+		while (totalSent < packetSize + sizeof(value))
+		{
+			int sentBytes = send(serverSocket, (char*)(packet + totalSent), sizeof(packet) - totalSent, 0);
+
+			if (sentBytes <= 0)
+			{
+				// 에러
+				return false;
+			}
+			
+			totalSent += sentBytes;
+		}
 	}
 
 	closesocket(serverSocket);
