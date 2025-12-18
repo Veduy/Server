@@ -1,4 +1,4 @@
-#define _CRT_SECURE_NO_WARNINGS
+﻿#define _CRT_SECURE_NO_WARNINGS
 #define _WINSOCK_DEPRECATED_NO_WARNINGS
 
 #include <iostream>
@@ -8,14 +8,6 @@
 #pragma comment(lib, "ws2_32")
 
 using namespace std;
-
-#pragma pack(push, 1)
-struct TransferData
-{
-	size_t dataCount = 0;
-	int dataSize[1024] = { 0 };
-};
-#pragma pack(pop)
 
 int main()
 {
@@ -28,19 +20,43 @@ int main()
 	sockaddr_in serverSockAddr;
 	memset(&serverSockAddr, 0, sizeof(serverSockAddr));
 	serverSockAddr.sin_family = PF_INET;
-	serverSockAddr.sin_addr.S_un.S_addr = inet_addr("127.0.0.1");
+	serverSockAddr.sin_addr.S_un.S_addr = INADDR_ANY;
 	serverSockAddr.sin_port = htons(8488);
 
 	bind(serverSocket, (sockaddr*)&serverSockAddr, sizeof(serverSockAddr));
 
 	listen(serverSocket, 10);
 
-	sockaddr_in clientSockAddr;
-	memset(&clientSockAddr, 0, sizeof(sockaddr));
-	int clientSockAddrLen = sizeof(clientSockAddr);
+	while (true)
+	{
+		sockaddr_in clientSockAddr;
+		memset(&clientSockAddr, 0, sizeof(sockaddr_in));
+		int clientAddrLen = sizeof(clientSockAddr);
 
-	accept(serverSocket, (sockaddr*)&serverSockAddr, &clientSockAddrLen);
+		SOCKET clientSocket = accept(serverSocket, (sockaddr*)&clientSockAddr, &clientAddrLen);
 
+		/* client connect accepted */
+		while (clientSocket)
+		{
+			int value = 0;
+			int recvBytes = recv(clientSocket, (char*)&value, sizeof(value), 0);
+			if (recvBytes > 0)
+			{
+				printf("%d\n", value);
+			}
+			if (recvBytes <= 0)
+			{
+				break;
+				closesocket(clientSocket);
+			}
+		}
+	}
+
+
+
+	
+
+	
 	closesocket(serverSocket);
 
 	WSACleanup();

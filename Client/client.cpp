@@ -1,4 +1,4 @@
-#define _CRT_SECURE_NO_WARNINGS
+﻿#define _CRT_SECURE_NO_WARNINGS
 #define _WINSOCK_DEPRECATED_NO_WARNINGS
 
 #include <iostream>
@@ -14,7 +14,7 @@ int main()
 
 	WSAStartup(MAKEWORD(2, 2), &wsaData);
 
-	SOCKET serverSocket = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
+	SOCKET serverSocket = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
 
 	sockaddr_in serverSockAddr;
 	memset(&serverSockAddr, 0, sizeof(serverSockAddr));
@@ -22,26 +22,18 @@ int main()
 	serverSockAddr.sin_addr.S_un.S_addr = inet_addr("127.0.0.1");
 	serverSockAddr.sin_port = htons(8488);
 
-
-	char sendBuffer[] = "hello server";
-	int sendBytes = sendto(serverSocket, sendBuffer, (int)(strlen(sendBuffer) + 1), 0, (sockaddr*)&serverSockAddr, sizeof(serverSockAddr));
-	if (sendBytes <= 0)
-	{
-
-	}
-
-	SOCKADDR_IN remoteSockAddr;
-	memset(&remoteSockAddr, 0, sizeof(remoteSockAddr));
-	int remoteSockAddrLength = sizeof(remoteSockAddr);
-
-	char recvBuffer[1024] = { 0, };
-	int recvBytes = recvfrom(serverSocket, recvBuffer, sizeof(recvBuffer), 0, (sockaddr*)&remoteSockAddr, &remoteSockAddrLength);
-	if (recvBytes <= 0)
-	{
-
-	}
-	printf(recvBuffer);
+	connect(serverSocket, (sockaddr*)&serverSockAddr, sizeof(serverSockAddr));	
 	
+	srand(time(nullptr));
+
+	int value = 0;
+
+	while (true)
+	{
+		std::cin >> value;
+		send(serverSocket, (char*)&value, sizeof(value), 0);
+	}
+
 	closesocket(serverSocket);
 
 	WSACleanup();
