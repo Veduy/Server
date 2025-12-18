@@ -23,7 +23,7 @@ int main()
 
 	WSAStartup(MAKEWORD(2, 2), &wsaData);
 
-	SOCKET serverSocket = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
+	SOCKET serverSocket = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
 
 	sockaddr_in serverSockAddr;
 	memset(&serverSockAddr, 0, sizeof(serverSockAddr));
@@ -33,25 +33,13 @@ int main()
 
 	bind(serverSocket, (sockaddr*)&serverSockAddr, sizeof(serverSockAddr));
 
+	listen(serverSocket, 10);
+
 	sockaddr_in clientSockAddr;
-	memset(&clientSockAddr, 0, sizeof(clientSockAddr));
-	int clientSockAddrLength = sizeof(clientSockAddr);
+	memset(&clientSockAddr, 0, sizeof(sockaddr));
+	int clientSockAddrLen = sizeof(clientSockAddr);
 
-	char buffer[1024] = { 0, };
-	int recvBytes = recvfrom(serverSocket, buffer, sizeof(buffer), 0, (sockaddr*)&clientSockAddr, &clientSockAddrLength);
-	if (recvBytes <= 0)
-	{
-
-	}
-
-	printf(buffer);
-
-	char sendBuffer[] = "hello client";
-	int sendBytes = sendto(serverSocket, sendBuffer, sizeof(sendBuffer), 0, (sockaddr*)&clientSockAddr, sizeof(clientSockAddr));
-	if (sendBytes <= 0)
-	{
-		
-	}
+	accept(serverSocket, (sockaddr*)&serverSockAddr, &clientSockAddrLen);
 
 	closesocket(serverSocket);
 
