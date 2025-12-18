@@ -145,6 +145,7 @@ int main()
 
 					int value = 0;
 					memcpy(&value, session.recvBuffer.data() + sizeof(int), packetSize);
+					value = ntohl(value);
 
 					printf("received value: %d\n", value);
 

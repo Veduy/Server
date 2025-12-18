@@ -38,9 +38,14 @@ int main()
 		try 
 		{
 			value = std::stol(input);
+			
 			if (value > (std::numeric_limits<int>::max)())
 			{
 				continue;
+			}
+			else
+			{
+				value = htonl(value);
 			}
 		}
 		catch (const std::out_of_range&)
