@@ -11,6 +11,20 @@
 
 using namespace std;
 
+string PrintAddress(SOCKET InSocket)
+{
+	SOCKADDR_IN OutSocketAddr;
+	memset(&OutSocketAddr, 0, sizeof(OutSocketAddr));
+	int OutSocketAddrLen = sizeof(OutSocketAddr);
+
+	getpeername(InSocket, (SOCKADDR*)&OutSocketAddr, &OutSocketAddrLen);
+
+	char Buffer[1024] = { 0 };
+	sprintf(Buffer, "%s : %d", inet_ntoa(OutSocketAddr.sin_addr), ntohs(OutSocketAddr.sin_port));
+
+	return Buffer;
+}
+
 int main()
 {
 	WSAData WsaData;
@@ -20,12 +34,13 @@ int main()
 	SOCKET ListenSocket = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
 
 	SOCKADDR_IN ListenSockAddr;
-	memset(&ListenSocket, 0, sizeof(ListenSockAddr));
+	memset(&ListenSockAddr, 0, sizeof(ListenSockAddr));
 	ListenSockAddr.sin_family = PF_INET;
 	ListenSockAddr.sin_addr.S_un.S_addr = INADDR_ANY;
 	ListenSockAddr.sin_port = htons(17777);
 
 	bind(ListenSocket, (sockaddr*)&ListenSockAddr, sizeof(ListenSockAddr));
+
 	listen(ListenSocket, 10);
 
 	FD_SET ReadSocketList;
@@ -33,16 +48,14 @@ int main()
 
 	FD_SET(ListenSocket, &ReadSocketList);
 
-	TIMEVAL TiemOut{ 0, 100 };
-
 	while (true)
 	{
+		TIMEVAL TiemOut{ 1, 0 };
 		FD_SET CopyReadSocketList = ReadSocketList;
-		int ChangeCount = select(0, &CopyReadSocketList, nullptr, nullptr, &TiemOut);
 
-		if (ChangeCount == 0)
+		int ChangeCount = select(0, &CopyReadSocketList, nullptr, nullptr, &TiemOut);
+		if (ChangeCount <= 0)
 		{
-			cout << "Wait" << endl;
 			continue;
 		}
 
@@ -60,10 +73,11 @@ int main()
 					int ClientSockAddrLength = sizeof(ClientSockAddr);
 
 					SOCKET ClientSocket = accept(ListenSocket, (sockaddr*)&ClientSockAddr, &ClientSockAddrLength);
-
-					FD_SET(ClientSocket, &ReadSocketList);
-
-					cout << "Client connected " << inet_ntoa(ClientSockAddr.sin_addr) << endl;
+					if (ClientSocket != INVALID_SOCKET)
+					{
+						FD_SET(ClientSocket, &ReadSocketList);
+						cout << "Client connected " << PrintAddress(ClientSocket) << endl;
+					}
 				}
 				else
 				{
@@ -72,22 +86,27 @@ int main()
 					int RecvBytes = recv(SelectSocket, Buffer, sizeof(Buffer), 0);
 					if (RecvBytes == 0)
 					{
-						cout << "Client disconnect : " << SelectSocket << endl;
+						cout << "Client disconnect : " << PrintAddress(SelectSocket) << endl;
 						FD_CLR(SelectSocket, &ReadSocketList);
 						closesocket(SelectSocket);
 					}
-					else if(RecvBytes < 0)
+					else if (RecvBytes < 0)
 					{
-						cout << "Client error disconnect : " << SelectSocket << endl;
+						cout << "Client error disconnect : " << PrintAddress(SelectSocket) << endl;
 						FD_CLR(SelectSocket, &ReadSocketList);
 						closesocket(SelectSocket);
 					}
-
-					cout << "Client send : " << Buffer << endl;
+					else
+					{
+						cout << "Client send : " << Buffer << endl;
+					}
 
 					int SendBytes = send(SelectSocket, Buffer, RecvBytes, 0);
 				}
 			}
+	
+
+
 		}
 	}
 
