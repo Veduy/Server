@@ -87,8 +87,16 @@ int main()
 				else
 				{
 					// 데이터 수신
+					// [][][][] int 4바이트 패킷 길이
+					// [][]...	메시지내용
+
+					// Client 소켓별 메시지를 저장할 변수가 있어야 할듯.
 					char Buffer[1024] = { 0 };
 					int RecvBytes = recv(SelectSocket, Buffer, sizeof(Buffer), 0);
+					int PacketSize = 0;
+					memcpy(&PacketSize, Buffer, sizeof(int));
+					PacketSize = ntohl(PacketSize);
+
 					if (RecvBytes == 0)
 					{
 						cout << "Client disconnect : " << PrintAddress(SelectSocket) << endl;
@@ -105,6 +113,7 @@ int main()
 						PlayerList.erase(SelectSocket);
 						continue;
 					}
+		
 
 					for (const auto& Pair : PlayerList)
 					{
@@ -112,7 +121,7 @@ int main()
 						{
 							continue;
 						}
-						int SendBytes = send(Pair.first, Buffer, RecvBytes, 0);
+						int SendBytes = send(Pair.first, Buffer + sizeof(int), PacketSize, 0);
 					}
 
 				}

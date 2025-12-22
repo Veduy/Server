@@ -70,7 +70,7 @@ int main()
 		int PacketSize = Packet.size();
 		while (TotalSent < PacketSize)
 		{
-			int SentBytes = send(ServerSocket, Buffer.data() + TotalSent, PacketSize - TotalSent, 0);
+			int SentBytes = send(ServerSocket, Packet.data() + TotalSent, PacketSize - TotalSent, 0);
 
 			if (SentBytes <= 0)
 			{
