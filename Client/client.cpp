@@ -54,11 +54,31 @@ int main()
 
 	HANDLE MessageHandle = (HANDLE)_beginthreadex(nullptr, 0, ThreadMessage, (void*)ServerSocket, NULL, NULL);
 
-	char Buffer[1024] = { 0 };
 	while (true)
 	{
-		cin.getline(Buffer, sizeof(Buffer));
-		int SendBytes = send(ServerSocket, Buffer, (int)strlen(Buffer) + 1, 0);
+		std::string Buffer;
+		getline(std::cin, Buffer);
+
+		int BufferSize = Buffer.size();
+		int NetBufferSize = htonl(BufferSize);
+
+		std::vector<char>Packet(sizeof(NetBufferSize) + BufferSize);
+		memcpy(Packet.data(), &NetBufferSize, sizeof(int));
+		memcpy(Packet.data() + sizeof(int), Buffer.data(), BufferSize);
+
+		int TotalSent = 0;
+		int PacketSize = Packet.size();
+		while (TotalSent < PacketSize)
+		{
+			int SentBytes = send(ServerSocket, Buffer.data() + TotalSent, PacketSize - TotalSent, 0);
+
+			if (SentBytes <= 0)
+			{
+				return false;
+			}
+
+			TotalSent += SentBytes;
+		}		
 	}
 
 	closesocket(ServerSocket);
