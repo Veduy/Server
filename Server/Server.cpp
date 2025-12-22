@@ -11,8 +11,6 @@
 
 using namespace std;
 
-
-
 string PrintAddress(SOCKET InSocket)
 {
 	SOCKADDR_IN OutSocketAddr;
@@ -30,7 +28,6 @@ string PrintAddress(SOCKET InSocket)
 int main()
 {
 	map<SOCKET, SOCKADDR_IN> PlayerList;
-
 
 	WSAData WsaData;
 
@@ -111,14 +108,15 @@ int main()
 
 					for (const auto& Pair : PlayerList)
 					{
+						if (Pair.first == SelectSocket)
+						{
+							continue;
+						}
 						int SendBytes = send(Pair.first, Buffer, RecvBytes, 0);
 					}
 
 				}
 			}
-	
-
-
 		}
 	}
 

@@ -1,8 +1,10 @@
 ﻿#define _CRT_SECURE_NO_WARNINGS
 #define _WINSOCK_DEPRECATED_NO_WARNINGS
 
+#include <Windows.h>
+#include <process.h>
 #include <iostream>
-#include <WinSock2.h>
+//#include <WinSock2.h>
 #include <string>
 #include <vector>
 #include <limits>
@@ -11,8 +13,32 @@
 
 using namespace std;
 
+unsigned ThreadMessage(void* Arg)
+{
+	SOCKET Socket = (SOCKET)(Arg);
+
+	while (true)
+	{
+		char Buffer[1024] = { 0 };
+		int RecvBytes = recv(Socket, Buffer, sizeof(Buffer), 0);
+
+		if (RecvBytes > 0)
+		{
+			cout << Buffer << endl;
+		}
+		else
+		{
+			break;
+		}
+	}
+
+	return 0;
+}
+
 int main()
 {
+	srand((unsigned int)time(nullptr));
+
 	WSAData wsaData;
 
 	WSAStartup(MAKEWORD(2, 2), &wsaData);
@@ -26,18 +52,13 @@ int main()
 
 	connect(ServerSocket, (sockaddr*)&ServerSockAddr, sizeof(ServerSockAddr));
 
-	srand((unsigned int)time(nullptr));
-	int ClientCount = rand() & 10000;
+	HANDLE MessageHandle = (HANDLE)_beginthreadex(nullptr, 0, ThreadMessage, (void*)ServerSocket, NULL, NULL);
 
 	char Buffer[1024] = { 0 };
 	while (true)
 	{
-		cout << "Chat : ";
 		cin.getline(Buffer, sizeof(Buffer));
 		int SendBytes = send(ServerSocket, Buffer, (int)strlen(Buffer) + 1, 0);
-
-		int RecvBytes = recv(ServerSocket, Buffer, sizeof(Buffer), 0);
-		cout << Buffer << endl;
 	}
 
 	closesocket(ServerSocket);
