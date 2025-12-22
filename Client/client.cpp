@@ -29,12 +29,16 @@ int main()
 	srand((unsigned int)time(nullptr));
 	int ClientCount = rand() & 10000;
 
-	char Buffer[1024] = "Hello";
-	int SendBytes = send(ServerSocket, Buffer, (int)strlen(Buffer) + 1, 0);
-	cout << Buffer << endl;
+	char Buffer[1024] = { 0 };
+	while (true)
+	{
+		cout << "Chat : ";
+		cin.getline(Buffer, sizeof(Buffer));
+		int SendBytes = send(ServerSocket, Buffer, (int)strlen(Buffer) + 1, 0);
 
-	int RecvBytes = recv(ServerSocket, Buffer, sizeof(Buffer), 0);
-	cout << Buffer << endl;
+		int RecvBytes = recv(ServerSocket, Buffer, sizeof(Buffer), 0);
+		cout << Buffer << endl;
+	}
 
 	closesocket(ServerSocket);
 

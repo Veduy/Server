@@ -11,6 +11,8 @@
 
 using namespace std;
 
+
+
 string PrintAddress(SOCKET InSocket)
 {
 	SOCKADDR_IN OutSocketAddr;
@@ -27,6 +29,9 @@ string PrintAddress(SOCKET InSocket)
 
 int main()
 {
+	map<SOCKET, SOCKADDR_IN> PlayerList;
+
+
 	WSAData WsaData;
 
 	WSAStartup(MAKEWORD(2, 2), &WsaData);
@@ -42,6 +47,8 @@ int main()
 	bind(ListenSocket, (sockaddr*)&ListenSockAddr, sizeof(ListenSockAddr));
 
 	listen(ListenSocket, 10);
+
+	cout << "Server Start" << endl;
 
 	FD_SET ReadSocketList;
 	FD_ZERO(&ReadSocketList);
@@ -77,6 +84,7 @@ int main()
 					{
 						FD_SET(ClientSocket, &ReadSocketList);
 						cout << "Client connected " << PrintAddress(ClientSocket) << endl;
+						PlayerList[ClientSocket] = ClientSockAddr;
 					}
 				}
 				else
@@ -89,19 +97,23 @@ int main()
 						cout << "Client disconnect : " << PrintAddress(SelectSocket) << endl;
 						FD_CLR(SelectSocket, &ReadSocketList);
 						closesocket(SelectSocket);
+						PlayerList.erase(SelectSocket);
+						continue;
 					}
 					else if (RecvBytes < 0)
 					{
 						cout << "Client error disconnect : " << PrintAddress(SelectSocket) << endl;
 						FD_CLR(SelectSocket, &ReadSocketList);
 						closesocket(SelectSocket);
-					}
-					else
-					{
-						cout << "Client send : " << Buffer << endl;
+						PlayerList.erase(SelectSocket);
+						continue;
 					}
 
-					int SendBytes = send(SelectSocket, Buffer, RecvBytes, 0);
+					for (const auto& Pair : PlayerList)
+					{
+						int SendBytes = send(Pair.first, Buffer, RecvBytes, 0);
+					}
+
 				}
 			}
 	
