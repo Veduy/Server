@@ -8,11 +8,33 @@
 #include <string>
 #include <vector>
 #include <map>
+#include <atomic>
 
 #pragma comment(lib, "ws2_32")
 
-// 서버 쓰레드 방법론1. 클라이언트마다 쓰레드 하나.
-// 서버 쓰레드 방법론2. 쓰레드하나에 클라이언트 몇명씩.
+class SpinLock
+{
+public:
+	void Lock()
+	{
+		bool expected = false;
+		while (!locked.compare_exchange_weak(expected, true, std::memory_order_acquire))
+		{
+			expected = false;
+		}		
+	}
+
+	void UnLock()
+	{
+		locked.store(false, std::memory_order_release);
+	}
+
+protected:
+	std::atomic_bool(locked);
+
+};
+
+
 
 using namespace std;
 string PrintAddress(SOCKET InSocket);
@@ -79,6 +101,7 @@ string PrintAddress(SOCKET InSocket)
 
 int main()
 {
+
 	InitializeCriticalSection(&WorkerSection);
 
 	WSAData WsaData;
