@@ -1,8 +1,10 @@
 ﻿#define _CRT_SECURE_NO_WARNINGS
 #define _WINSOCK_DEPRECATED_NO_WARNINGS
 
-#include <iostream>
 #include <WinSock2.h>
+#include <Windows.h>
+#include <process.h>
+#include <iostream>
 #include <string>
 #include <vector>
 #include <limits>
@@ -11,8 +13,34 @@
 
 using namespace std;
 
+unsigned RecvThread(void* Arg)
+{
+	SOCKET Sock = (SOCKET)(Arg);
+
+	while (true)
+	{
+		char Buffer[1024] = { 0 };
+		int RecvBytes = recv(Sock, Buffer, sizeof(Buffer), 0);
+		cout << Buffer << endl;
+	}
+}
+
+unsigned SendThread(void* Arg)
+{
+	SOCKET Sock = (SOCKET)(Arg);
+
+	while (true)
+	{
+		char Buffer[1024] = { 0 };
+		cin.getline(Buffer, sizeof(Buffer));
+		int SendBytes = send(Sock, Buffer, (int)strlen(Buffer) + 1, 0);
+	}
+}
+
 int main()
 {
+	srand((unsigned int)time(nullptr));
+
 	WSAData wsaData;
 
 	WSAStartup(MAKEWORD(2, 2), &wsaData);
@@ -26,19 +54,20 @@ int main()
 
 	connect(ServerSocket, (sockaddr*)&ServerSockAddr, sizeof(ServerSockAddr));
 
-	srand((unsigned int)time(nullptr));
-	int ClientCount = rand() & 10000;
+	HANDLE Threads[2];
 
-	char Buffer[1024] = { 0 };
-	while (true)
-	{
-		cout << "Chat : ";
-		cin.getline(Buffer, sizeof(Buffer));
-		int SendBytes = send(ServerSocket, Buffer, (int)strlen(Buffer) + 1, 0);
+	Threads[0] = (HANDLE)_beginthreadex(nullptr, 0, RecvThread, (void*)ServerSocket, 0
+	, NULL);
 
-		int RecvBytes = recv(ServerSocket, Buffer, sizeof(Buffer), 0);
-		cout << Buffer << endl;
-	}
+	Threads[1] = (HANDLE)_beginthreadex(nullptr, 0, SendThread, (void*)ServerSocket, 0
+		, NULL);
+
+	// signaled 
+	// 두 쓰레드가 끝날때까지 기다려.
+	DWORD Result = WaitForMultipleObjects(2, Threads, true, INFINITE);
+
+	CloseHandle(Threads[0]);
+	CloseHandle(Threads[1]);
 
 	closesocket(ServerSocket);
 

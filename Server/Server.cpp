@@ -1,17 +1,67 @@
 ﻿#define _CRT_SECURE_NO_WARNINGS
 #define _WINSOCK_DEPRECATED_NO_WARNINGS
 
-#include <iostream>
 #include <WinSock2.h>
-#include <vector>
+#include <Windows.h>
+#include <process.h>
+#include <iostream>
 #include <string>
+#include <vector>
 #include <map>
 
 #pragma comment(lib, "ws2_32")
 
+// 서버 쓰레드 방법론1. 클라이언트마다 쓰레드 하나.
+// 서버 쓰레드 방법론2. 쓰레드하나에 클라이언트 몇명씩.
+
 using namespace std;
+string PrintAddress(SOCKET InSocket);
 
+CRITICAL_SECTION WorkerSection;
+map<SOCKET, SOCKADDR_IN> PlayerList;
 
+unsigned WorkerThread(void* Arg)
+{
+	SOCKET ClientSocket = *(SOCKET*)Arg;
+	
+	// 데이터 수신
+	while (true)
+	{
+		char Buffer[1024] = { 0 };
+		int RecvBytes = recv(ClientSocket, Buffer, sizeof(Buffer), 0);
+		if (RecvBytes == 0)
+		{
+			cout << "Client disconnect : " << PrintAddress(ClientSocket) << endl;
+			closesocket(ClientSocket);
+
+			EnterCriticalSection(&WorkerSection);
+			PlayerList.erase(ClientSocket);
+			LeaveCriticalSection(&WorkerSection);
+
+			break;
+		}
+		else if (RecvBytes < 0)
+		{
+			cout << "Client error disconnect : " << PrintAddress(ClientSocket) << endl;
+			closesocket(ClientSocket);
+
+			EnterCriticalSection(&WorkerSection);
+			PlayerList.erase(ClientSocket);
+			LeaveCriticalSection(&WorkerSection);
+
+			break;
+		}
+
+		EnterCriticalSection(&WorkerSection);
+		for (const auto& Pair : PlayerList)
+		{
+			int SendBytes = send(Pair.first, Buffer, RecvBytes, 0);
+		}
+		LeaveCriticalSection(&WorkerSection);
+	}
+
+	return 0;
+}
 
 string PrintAddress(SOCKET InSocket)
 {
@@ -29,8 +79,7 @@ string PrintAddress(SOCKET InSocket)
 
 int main()
 {
-	map<SOCKET, SOCKADDR_IN> PlayerList;
-
+	InitializeCriticalSection(&WorkerSection);
 
 	WSAData WsaData;
 
@@ -55,76 +104,35 @@ int main()
 
 	FD_SET(ListenSocket, &ReadSocketList);
 
+	SOCKADDR_IN ClientSockAddr;
+	memset(&ClientSockAddr, 0, sizeof(ClientSockAddr));
+	int ClientSockAddrLength = sizeof(ClientSockAddr);
+
 	while (true)
 	{
-		TIMEVAL TiemOut{ 1, 0 };
-		FD_SET CopyReadSocketList = ReadSocketList;
+		SOCKET ClientSocket = accept(ListenSocket, (sockaddr*)&ClientSockAddr, &ClientSockAddrLength);
+		cout << "Client connected : " << PrintAddress(ClientSocket) << endl;
 
-		int ChangeCount = select(0, &CopyReadSocketList, nullptr, nullptr, &TiemOut);
-		if (ChangeCount <= 0)
-		{
-			continue;
-		}
+		EnterCriticalSection(&WorkerSection);
+		PlayerList[ClientSocket] = ClientSockAddr;
+		LeaveCriticalSection(&WorkerSection);
+
+		// 워커쓰레드로 계속 클라이언트를 추가
+		_beginthreadex(nullptr, 0, WorkerThread, &ClientSocket, 0, 0);
+
+		FD_SET CopyReadSocketList = ReadSocketList;
 
 		for (int i = 0; i < (int)ReadSocketList.fd_count; ++i)
 		{
 			SOCKET SelectSocket = ReadSocketList.fd_array[i];
-
-			if (FD_ISSET(SelectSocket, &CopyReadSocketList))
-			{
-				if (SelectSocket == ListenSocket)
-				{
-					// 연결요청
-					SOCKADDR_IN ClientSockAddr;
-					memset(&ClientSockAddr, 0, sizeof(ClientSockAddr));
-					int ClientSockAddrLength = sizeof(ClientSockAddr);
-
-					SOCKET ClientSocket = accept(ListenSocket, (sockaddr*)&ClientSockAddr, &ClientSockAddrLength);
-					if (ClientSocket != INVALID_SOCKET)
-					{
-						FD_SET(ClientSocket, &ReadSocketList);
-						cout << "Client connected " << PrintAddress(ClientSocket) << endl;
-						PlayerList[ClientSocket] = ClientSockAddr;
-					}
-				}
-				else
-				{
-					// 데이터 수신
-					char Buffer[1024] = { 0 };
-					int RecvBytes = recv(SelectSocket, Buffer, sizeof(Buffer), 0);
-					if (RecvBytes == 0)
-					{
-						cout << "Client disconnect : " << PrintAddress(SelectSocket) << endl;
-						FD_CLR(SelectSocket, &ReadSocketList);
-						closesocket(SelectSocket);
-						PlayerList.erase(SelectSocket);
-						continue;
-					}
-					else if (RecvBytes < 0)
-					{
-						cout << "Client error disconnect : " << PrintAddress(SelectSocket) << endl;
-						FD_CLR(SelectSocket, &ReadSocketList);
-						closesocket(SelectSocket);
-						PlayerList.erase(SelectSocket);
-						continue;
-					}
-
-					for (const auto& Pair : PlayerList)
-					{
-						int SendBytes = send(Pair.first, Buffer, RecvBytes, 0);
-					}
-
-				}
-			}
-	
-
-
 		}
 	}
 
 	closesocket(ListenSocket);
 
 	WSACleanup();
+
+	DeleteCriticalSection(&WorkerSection);
 
 	return 0;
 }
