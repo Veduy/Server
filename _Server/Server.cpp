@@ -1,5 +1,6 @@
 ﻿#define _CRT_SECURE_NO_WARNINGS
 #define _WINSOCK_DEPRECATED_NO_WARNINGS
+#define _SILENCE_CXX17_ITERATOR_BASE_CLASS_DEPRECATION_WARNING
 
 #include <WinSock2.h>
 #include <Windows.h>
@@ -9,6 +10,10 @@
 #include <vector>
 #include <map>
 #include <atomic>
+
+#include <rapidjson/document.h>
+#include <rapidjson/writer.h>
+#include <rapidjson/stringbuffer.h>
 
 #pragma comment(lib, "ws2_32")
 
@@ -33,7 +38,6 @@ protected:
 	std::atomic_bool(locked);
 
 };
-
 
 
 using namespace std;
@@ -99,9 +103,9 @@ string PrintAddress(SOCKET InSocket)
 	return Buffer;
 }
 
+
 int main()
 {
-
 	InitializeCriticalSection(&WorkerSection);
 
 	WSAData WsaData;
@@ -127,12 +131,12 @@ int main()
 
 	FD_SET(ListenSocket, &ReadSocketList);
 
-	SOCKADDR_IN ClientSockAddr;
-	memset(&ClientSockAddr, 0, sizeof(ClientSockAddr));
-	int ClientSockAddrLength = sizeof(ClientSockAddr);
-
 	while (true)
 	{
+		SOCKADDR_IN ClientSockAddr;
+		memset(&ClientSockAddr, 0, sizeof(ClientSockAddr));
+		int ClientSockAddrLength = sizeof(ClientSockAddr);
+
 		SOCKET ClientSocket = accept(ListenSocket, (sockaddr*)&ClientSockAddr, &ClientSockAddrLength);
 		cout << "Client connected : " << PrintAddress(ClientSocket) << endl;
 
@@ -143,12 +147,6 @@ int main()
 		// 워커쓰레드로 계속 클라이언트를 추가
 		_beginthreadex(nullptr, 0, WorkerThread, &ClientSocket, 0, 0);
 
-		FD_SET CopyReadSocketList = ReadSocketList;
-
-		for (int i = 0; i < (int)ReadSocketList.fd_count; ++i)
-		{
-			SOCKET SelectSocket = ReadSocketList.fd_array[i];
-		}
 	}
 
 	closesocket(ListenSocket);

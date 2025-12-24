@@ -3,5 +3,5 @@
     <Platform Name="x64" />
     <Platform Name="x86" />
   </Configurations>
-  <Project Path="atomic.vcxproj" Id="4d445c24-d484-43e1-ba06-03f4371c80e4" />
+  <Project Path="ChatServer.vcxproj" Id="6b815c54-cbf5-412a-a124-7beb369a610f" />
 </Solution>
