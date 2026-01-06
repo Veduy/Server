@@ -72,18 +72,20 @@ int main()
 	uint8_t* buffer_pointer = buf;/* the data you just read */;
 
 	// Get a view to the root object inside the buffer.
-	auto monster = GetMonster(buffer_pointer);
-	auto hp = monster->hp();
-	auto mana = monster->mana();
-	auto name = monster->name()->c_str();
-	auto pos = monster->pos();
-	auto x = pos->x();
-	auto y = pos->y();
-	auto z = pos->z();
+	auto Netmonster = GetMonster(buffer_pointer);
 
-	auto inv = monster->inventory();
-	auto inv_len = inv->size();
-	auto third_item = inv->Get(2);
+	auto Nethp = Netmonster->hp();
+	auto Netmana = Netmonster->mana();
+	auto Netname = Netmonster->name()->c_str();
+	auto Netpos = Netmonster->pos();
+	auto Netx = Netpos->x();
+	auto Nety = Netpos->y();
+	auto Netz = Netpos->z();
+	auto Netinv = Netmonster->inventory();
+	auto Netinv_len = Netinv->size();
+	auto Netthird_item = Netinv->Get(8);
+
+	std::cout << (int)Netthird_item << std::endl;
 
 	return 0;
 }
