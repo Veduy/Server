@@ -59,7 +59,8 @@ unsigned SendThread(void* Arg)
 
 		ChatPacket Message;
 		Message.UserName = "won";
-		Message.Message = Buffer;                                                                                                                                                 
+		Message.Message = Buffer;
+
 		// Json 패킷 크기
 		std::string Json = Message.ToJsonString();
 		int PacketSize = (int)Json.length();

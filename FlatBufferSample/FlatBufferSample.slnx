@@ -3,5 +3,5 @@
     <Platform Name="x64" />
     <Platform Name="x86" />
   </Configurations>
-  <Project Path="ChatClient.vcxproj" Id="fb196f9c-a803-4419-a348-83f94a7e53aa" />
+  <Project Path="FlatBufferSample.vcxproj" />
 </Solution>
