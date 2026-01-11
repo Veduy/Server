@@ -3,6 +3,7 @@
 #define NOMINMAX
 
 #include <WinSock2.h>
+#include <Windows.h>
 
 #include "UserEvents_generated.h"
 #include "flatbuffers/flatbuffers.h"
