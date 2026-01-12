@@ -1,8 +1,18 @@
 
 #include <iostream>
+
 #include "Common.h"
 
+#include "mysql-connector/include/jdbc/mysql_connection.h"
+#include "mysql-connector/include/jdbc/cppconn/driver.h"
+#include "mysql-connector/include/jdbc/cppconn/exception.h"
+#include "mysql-connector/include/jdbc/cppconn/resultset.h"
+#include "mysql-connector/include/jdbc/cppconn/statement.h"
+#include "mysql-connector/include/jdbc/cppconn/prepared_statement.h"
+
 #pragma comment(lib, "Common.lib")
+
+#pragma comment(lib, "mysqlcppconn.lib")
 
 int main()
 {
@@ -41,7 +51,7 @@ int main()
 			continue;
 		}
 
-		for (int i =0; i < WorkingReadSet.fd_count; ++i)
+		for (int i = 0; i < (int)WorkingReadSet.fd_count; ++i)
 		{
 			SOCKET SelectedSocket = WorkingReadSet.fd_array[i];
 
@@ -67,6 +77,50 @@ int main()
 					// 패킷처리
 					char Buffer[4096] = { 0 };
 					int RecvBytes = RecvPacket(SelectedSocket, Buffer);
+
+					flatbuffers::FlatBufferBuilder Builder;
+					auto UserEvent = UserEvents::GetEventData(Buffer);
+					switch (UserEvent->data_type())
+					{
+					case UserEvents::EventType_ServerLogin:
+						auto ServerLoginData = UserEvent->data_as_ServerLogin();
+						std::cout << ServerLoginData->userid()->c_str() << std::endl;
+						std::cout << ServerLoginData->password()->c_str() << std::endl;
+						// 여기서 DB랑 통신
+						
+						
+						sql::Driver* Driver = nullptr;
+						sql::Connection* Connection = nullptr;
+						sql::Statement* Statement = nullptr;
+						sql::ResultSet* ResultSet = nullptr;
+						sql::PreparedStatement* PreparedStatement = nullptr;
+
+						try
+						{
+							Driver = get_driver_instance();
+							Connection = Driver->connect("tcp://127.0.0.1", "root", "qweasd123");
+
+							Connection->setSchema("membership");
+
+							// 동적 쿼리
+							PreparedStatement = Connection->prepareStatement("select `passwd` from user where `user_id` = ?;");
+							PreparedStatement->setString(1, ServerLoginData->userid()->c_str());
+							ResultSet = PreparedStatement->executeQuery();
+
+							while (ResultSet->next())
+							{
+								std::cout << ResultSet->getString("passwd") << std::endl;
+							}
+
+						}
+						catch (std::exception e)
+						{
+							std::cout << e.what() << std::endl;
+						}
+
+						delete Statement;
+						delete Connection;
+					}
 				}
 			}
 		}

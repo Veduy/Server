@@ -10,5 +10,5 @@
 
 #pragma comment(lib, "ws2_32")
 
-bool SendPacket(SOCKET Socket, const flatbuffers::FlatBufferBuilder& Builder);
+int SendPacket(SOCKET Socket, flatbuffers::FlatBufferBuilder& Builder);
 int RecvPacket(SOCKET Socket, char* Buffer);
