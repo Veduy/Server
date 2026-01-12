@@ -103,13 +103,15 @@ int main()
 							Connection->setSchema("membership");
 
 							// µ¿Àû Äõ¸®
-							PreparedStatement = Connection->prepareStatement("select `passwd` from user where `user_id` = ?;");
+							PreparedStatement = Connection->prepareStatement("select `id`, `name` from user where `user_id` = ? AND passwd = SHA2(?, 256);");
 							PreparedStatement->setString(1, ServerLoginData->userid()->c_str());
+							PreparedStatement->setString(2, ServerLoginData->password()->c_str());
 							ResultSet = PreparedStatement->executeQuery();
 
 							while (ResultSet->next())
 							{
-								std::cout << ResultSet->getString("passwd") << std::endl;
+								std::cout << ResultSet->getString("id") << ", ";
+								std::cout << ResultSet->getString("name") << std::endl;
 							}
 
 						}
