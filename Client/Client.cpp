@@ -22,7 +22,7 @@ int main()
 
 	SOCKET ServerSocket = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
 	SOCKADDR_IN ServerSockAddr;
-	
+
 	memset(&ServerSockAddr, 0, sizeof(ServerSockAddr));
 	ServerSockAddr.sin_family = AF_INET;
 	ServerSockAddr.sin_addr.s_addr = inet_addr("127.0.0.1");
@@ -39,9 +39,9 @@ int main()
 	{
 		// 로그인 패킷 보낼거임
 		flatbuffers::FlatBufferBuilder Builder;
-		
+
 		auto ServerLoginData = UserEvents::CreateServerLogin(Builder, Builder.CreateString("admin"), Builder.CreateString("1234"));
-		
+
 		auto EventData = UserEvents::CreateEventData(Builder, 0, UserEvents::EventType_ServerLogin, ServerLoginData.Union());
 
 		Builder.Finish(EventData);
@@ -54,5 +54,22 @@ int main()
 		}
 	}
 
-	return 0;
+	while (1)
+	{
+		char Buffer[4096] = { 0 };
+		int RecvBytes = RecvPacket(ServerSocket, Buffer);
+
+		flatbuffers::FlatBufferBuilder Builder;
+		auto UserEvent = UserEvents::GetEventData(Buffer);
+		switch (UserEvent->data_type())
+		{
+		case UserEvents::EventType_ClientLogin:
+			auto ClientLoginData = UserEvent->data_as_ClientLogin();
+			std::cout << ClientLoginData->player_id() << std::endl;
+			std::cout << ClientLoginData->success() << std::endl;
+			std::cout << ClientLoginData->message()->c_str() << std::endl;
+			break;
+		}
+	}
+		return 0;
 }

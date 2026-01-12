@@ -87,8 +87,7 @@ int main()
 						std::cout << ServerLoginData->userid()->c_str() << std::endl;
 						std::cout << ServerLoginData->password()->c_str() << std::endl;
 						// 여기서 DB랑 통신
-						
-						
+					
 						sql::Driver* Driver = nullptr;
 						sql::Connection* Connection = nullptr;
 						sql::Statement* Statement = nullptr;
@@ -103,6 +102,7 @@ int main()
 							Connection->setSchema("membership");
 
 							// 동적 쿼리
+							// 비밀번호를 c++에서 하면 빡세서 MySQL에 던짐.
 							PreparedStatement = Connection->prepareStatement("select `id`, `name` from user where `user_id` = ? AND passwd = SHA2(?, 256);");
 							PreparedStatement->setString(1, ServerLoginData->userid()->c_str());
 							PreparedStatement->setString(2, ServerLoginData->password()->c_str());
@@ -114,6 +114,18 @@ int main()
 								std::cout << ResultSet->getString("name") << std::endl;
 							}
 
+							flatbuffers::FlatBufferBuilder LoginBuilder;
+							int id = atoi(ServerLoginData->userid()->c_str());
+							auto ClientLoginData = UserEvents::CreateClientLogin(LoginBuilder, id, true, LoginBuilder.CreateString("Login Accepted..."));
+							auto LoginEventData = UserEvents::CreateEventData(LoginBuilder, 0, UserEvents::EventType_ClientLogin, ClientLoginData.Union());
+							LoginBuilder.Finish(LoginEventData);
+
+							int PacketSize = LoginBuilder.GetSize() + sizeof(int);
+							int SentBytes = SendPacket(SelectedSocket, LoginBuilder);
+							if (PacketSize == SentBytes)
+							{
+								std::cout << "Success sending packet" << std::endl;
+							}
 						}
 						catch (std::exception e)
 						{
@@ -122,6 +134,7 @@ int main()
 
 						delete Statement;
 						delete Connection;
+						break;
 					}
 				}
 			}
