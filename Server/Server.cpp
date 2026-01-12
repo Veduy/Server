@@ -108,12 +108,11 @@ int main()
 							PreparedStatement->setString(2, ServerLoginData->password()->c_str());
 							ResultSet = PreparedStatement->executeQuery();
 
-							while (ResultSet->next())
+							if (!ResultSet->next())
 							{
-								std::cout << ResultSet->getString("id") << ", ";
-								std::cout << ResultSet->getString("name") << std::endl;
+								throw std::runtime_error("error");
 							}
-
+					
 							flatbuffers::FlatBufferBuilder LoginBuilder;
 							int id = atoi(ServerLoginData->userid()->c_str());
 							auto ClientLoginData = UserEvents::CreateClientLogin(LoginBuilder, id, true, LoginBuilder.CreateString("Login Accepted..."));
@@ -129,7 +128,7 @@ int main()
 						}
 						catch (std::exception e)
 						{
-							std::cout << e.what() << std::endl;
+							std::cout << "아이디 비번을 확인해줘요." << std::endl;
 						}
 
 						delete Statement;

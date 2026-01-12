@@ -40,7 +40,15 @@ int main()
 		// 로그인 패킷 보낼거임
 		flatbuffers::FlatBufferBuilder Builder;
 
-		auto ServerLoginData = UserEvents::CreateServerLogin(Builder, Builder.CreateString("admin"), Builder.CreateString("1234"));
+		std::string InputUserID;
+		std::cout << "UserID: ";
+		std::cin >> InputUserID;
+
+		std::cout << "Password: ";
+		std::string InputPassword;
+		std::cin >> InputPassword;
+
+		auto ServerLoginData = UserEvents::CreateServerLogin(Builder, Builder.CreateString(InputUserID), Builder.CreateString(InputPassword));
 
 		auto EventData = UserEvents::CreateEventData(Builder, 0, UserEvents::EventType_ServerLogin, ServerLoginData.Union());
 
@@ -48,7 +56,7 @@ int main()
 
 		int PacketSize = Builder.GetSize() + sizeof(int);
 		int SentBytes = SendPacket(ServerSocket, Builder);
-		if (PacketSize == SentBytes)
+		if (SentBytes >= PacketSize)
 		{
 			std::cout << "Success sending packet" << std::endl;
 		}
@@ -71,5 +79,5 @@ int main()
 			break;
 		}
 	}
-		return 0;
+	return 0;
 }
