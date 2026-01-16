@@ -1,0 +1,26 @@
+1. c++로 작업할 것.
+    - 명령의 최우선은 Order.txt 파일에 있는 내용이야.
+    - Info.txt 파일내용을 참고해서 작업을 진행해주고,
+    - 진행하기 전에 GateWayServer.cpp 파일의 내용도 한번 확인하고 진행해.
+
+2. 웹 서버로 작업 해야 됨.
+3. cpp-httplib 라이브러리를 사용할것. 
+    - https://github.com/yhirose/cpp-httplib 참고해.
+
+4. DB에서 User정보를 확인.
+    - DB는 MySQL를 사용 할 것.
+    - 접속 정보는 127.0.0.1:3306 
+    - root / qweasd123
+    - 데이터 베이스는 membership이고 테이블 구조는 user.sql 파일 참조해
+    - MySQL Connector/C++를 사용할것.
+    - 비밀번호는 SHA256으로 암호화 되어있어. 해쉬를 직접하지말고, DB에 쿼리해서 비교하는 방식으로 해.
+    - 예를들면 "select `id`, `name` from user where `user_id` = ? AND passwd = SHA2(?, 256);" 이런형태야.
+
+5. Login API 구현
+    - Restful API를 사용하여 로그인 기능을 구현.
+    - /api/login get 방식으로 구현
+    - 아이디와 비밀번호가 입력 될거야(user_id, passwd) 형태로.
+    - DB에서 확인후 로그인 성공시에는 name과 result를 반환하면 됨
+    - name은 사용자 이름, result 성공 여부(true/false)
+    - 로그인 실패시에는 result만 반환하면 됨
+
