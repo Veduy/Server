@@ -114,7 +114,8 @@
       <GenerateDebugInformation>true</GenerateDebugInformation>
     </Link>
     <PreBuildEvent>
-      <Command>$(ProjectDir)flatc --cpp $(ProjectDir)UserEvents.fbs</Command>
+      <Command>$(ProjectDir)flatc --cpp $(ProjectDir)UserEvents.fbs
+$(ProjectDir)flatc --cpp $(ProjectDir)MatchingEvents.fbs</Command>
     </PreBuildEvent>
     <PostBuildEvent>
       <Command>copy $(OutputPath)Common.lib $(SolutionDir)GatewayServer
@@ -141,6 +142,7 @@ copy $(OutputPath)Common.lib $(SolutionDir)WebServer</Command>
     <ClInclude Include="Common.h" />
   </ItemGroup>
   <ItemGroup>
+    <None Include="MatchingEvents.fbs" />
     <None Include="UserEvents.fbs" />
   </ItemGroup>
   <ItemGroup>

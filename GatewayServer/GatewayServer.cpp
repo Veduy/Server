@@ -1,9 +1,13 @@
 ﻿
 #include <iostream>
+#include <vector>
+#include <utility>
 
 #include "Common.h"
 
 #pragma comment(lib, "Common.lib")
+
+
 
 int main()
 {
@@ -28,6 +32,8 @@ int main()
 
 	printf("GatewayServer started...\n");
 
+	std::vector<std::pair<int, std::string>> WaitingUsers;
+
 	while (true)
 	{
 		TIMEVAL TimeOut;
@@ -42,6 +48,7 @@ int main()
 			continue;
 		}
 
+		// 지금상태에선 어차피 WebServer랑만 통신이 열려있는거니까, 연결중인 Socket이 하나밖에 없잖아.
 		for (int i = 0; i < (int)WorkingReadSet.fd_count; ++i)
 		{
 			SOCKET SelectedSocket = WorkingReadSet.fd_array[i];
@@ -69,29 +76,45 @@ int main()
 					char Buffer[4096] = { 0 };
 					int RecvBytes = RecvPacket(SelectedSocket, Buffer);
 
-					flatbuffers::FlatBufferBuilder Builder;
+					if (RecvBytes <= 0)
+					{
+						closesocket(SelectedSocket);
+						FD_CLR(SelectedSocket, &MasterReadSet);
+						continue;
+					}
+
 					auto UserEvent = UserEvents::GetEventData(Buffer);
 					switch (UserEvent->data_type())
 					{
 					case UserEvents::EventType_ServerLogin:
+					{
 						auto ServerLoginData = UserEvent->data_as_ServerLogin();
-						std::cout << ServerLoginData->idx() << std::endl;
-						std::cout << ServerLoginData->name()->c_str() << std::endl;
+						std::cout << "User Login: " << ServerLoginData->idx() << " (" << ServerLoginData->name()->c_str() << ")" << std::endl;
 
-						//flatbuffers::FlatBufferBuilder LoginBuilder;
-						//int id = atoi(ServerLoginData->userid()->c_str());
-						//auto ClientLoginData = UserEvents::CreateClientLogin(LoginBuilder, id, true, LoginBuilder.CreateString("Login Accepted..."));
-						//auto LoginEventData = UserEvents::CreateEventData(LoginBuilder, 0, UserEvents::EventType_ClientLogin, ClientLoginData.Union());
-						//LoginBuilder.Finish(LoginEventData);
+						WaitingUsers.push_back({ ServerLoginData->idx(), ServerLoginData->name()->str() });
 
-						//int PacketSize = LoginBuilder.GetSize() + sizeof(int);
-						//int SentBytes = SendPacket(SelectedSocket, LoginBuilder);
-						//if (PacketSize == SentBytes)
-						//{
-						//	std::cout << "Success sending packet" << std::endl;
-						//}
-						//
-						//break;
+						// 들어온 순서대로 2명.
+						if (WaitingUsers.size() >= 2)
+						{
+							std::cout << "WaitingUsers Num Over 2, Match! MatchInfo Send to WebServer..." << std::endl;
+							flatbuffers::FlatBufferBuilder MatchBuilder;
+
+							std::vector<flatbuffers::Offset<MatchingEvents::UserInfo>> UserOffsets;
+							for (const auto& user : WaitingUsers)
+							{
+								auto nameOffset = MatchBuilder.CreateString(user.second);
+								UserOffsets.push_back(MatchingEvents::CreateUserInfo(MatchBuilder, user.first, nameOffset));
+							}
+
+							auto UsersVector = MatchBuilder.CreateVector(UserOffsets);
+							auto MatchDataOffset = MatchingEvents::CreateMatchData(MatchBuilder, UsersVector);
+							MatchBuilder.Finish(MatchDataOffset);
+
+							SendPacket(SelectedSocket, MatchBuilder);
+							WaitingUsers.clear();
+						}
+					break;
+					}
 					}
 				}
 			}

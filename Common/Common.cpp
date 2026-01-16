@@ -70,3 +70,12 @@ int RecvPacket(SOCKET Socket, char* Buffer)
     // 성공 시 payload 크기 반환
     return PayloadSize;
 }
+
+std::string CreateJsonResponse(const std::string& name, bool result)
+{
+    if (name.empty())
+    {
+        return "{\"result\": false}";
+    }
+    return "{\"name\": \"" + name + "\", \"result\": " + (result ? "true" : "false") + "}";
+}

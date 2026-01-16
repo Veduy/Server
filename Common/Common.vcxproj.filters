@@ -21,6 +21,7 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="UserEvents.fbs" />
+    <None Include="MatchingEvents.fbs" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Common.cpp">

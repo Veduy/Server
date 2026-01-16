@@ -11,6 +11,8 @@
 #include "Common.h"
 #include "httplib.h"
 
+#include <thread>
+
 #include "mysql-connector/include/jdbc/mysql_connection.h"
 #include "mysql-connector/include/jdbc/cppconn/driver.h"
 #include "mysql-connector/include/jdbc/cppconn/exception.h"
@@ -21,12 +23,30 @@
 #pragma comment(lib, "mysqlcppconn.lib")
 #pragma comment(lib, "Common.lib")
 
-// Helper function to create JSON response (minimal implementation)
-std::string CreateJsonResponse(const std::string& name, bool result) {
-    if (name.empty()) {
-        return "{\"result\": false}";
+void ReceiveMatchResult(SOCKET ServerSocket)
+{
+    char Buffer[4096] = { 0 };
+    while (true)
+    {
+        int RecvBytes = RecvPacket(ServerSocket, Buffer);
+        if (RecvBytes > 0)
+        {
+            auto MatchData = MatchingEvents::GetMatchData(Buffer);
+            std::cout << "\n===== Match Found! =====" << std::endl;
+            auto users = MatchData->users();
+            for (unsigned int i = 0; i < users->size(); ++i)
+            {
+                auto user = users->Get(i);
+                std::cout << "User " << i + 1 << ": ID(" << user->idx() << "), Name(" << user->name()->c_str() << ")" << std::endl;
+            }
+            std::cout << "========================\n" << std::endl;
+        }
+        else if (RecvBytes <= 0)
+        {
+            std::cout << "GatewayServer disconnected" << std::endl;
+            break;
+        }
     }
-    return "{\"name\": \"" + name + "\", \"result\": " + (result ? "true" : "false") + "}";
 }
 
 int main() 
@@ -48,7 +68,16 @@ int main()
     if (ConnectResult == SOCKET_ERROR)
     {
         int Error = WSAGetLastError();
-        std::cout << Error << std::endl;
+        std::cout << "GatewayServer Connect Error: " << Error << std::endl;
+    }
+    else
+    {
+        std::cout << "Connected to GatewayServer." << std::endl;
+        std::thread ReceiveThread(ReceiveMatchResult, ServerSocket);
+
+        //이 스레드는 독립적으로 실행할거임 -> 객체가 없어져도 상관x 
+        // std::thread객체는 소멸될때, join()되거나, detach()되어 있지 않으면 프로그램은 강제로 종료.
+        ReceiveThread.detach();
     }
 
     httplib::Server svr;
@@ -133,7 +162,7 @@ int main()
     
 
     svr.listen("0.0.0.0", 8080); //블로킹 상태 진입함.
-    //GateServer로부터 Packet받아야할텐데, 쓰레드 추가해야할듯.
+    //GateServer로부터 Packet받는 쓰레드 추가.
 
     return 0;
 }
