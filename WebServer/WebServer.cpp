@@ -174,23 +174,28 @@ int main()
 
             sql::ResultSet* res_db(PreparedStatement->executeQuery());
 
+            /*
+            * {
+                  "name": "John",
+                  "age": 30,
+                  "city": "New York"
+               }
+            */
             // JSON 문자열
-            std::string JsonString = R"()";
-
-            bool first = true;
+            json Ranking;
+         
             while (res_db->next())
             {
-                if (!first) JsonString += ",";
-                JsonString += "{";
-                //json_response += "\"ranking\":" + std::to_string(res_db->getInt("ranking")) + ",";
-                JsonString += "\"name\":\"" + res_db->getString("user_name") + "\",";
-                JsonString += "\"score\":" + std::to_string(res_db->getInt("score"));
-                JsonString += "}";
-                first = false;
+                json Row =
+                {
+                    {"rank", std::to_string(res_db->getInt("ranking"))},
+                    {"name", res_db->getString("user_name")},
+                    {"score", std::to_string(res_db->getInt("score"))}
+                };
+                Ranking.push_back(Row);
             }
-            JsonString += "";
-
-            res.set_content(JsonString, "application/json");
+            
+            res.set_content(Ranking.dump(), "application/json");
 
             delete PreparedStatement;
         }

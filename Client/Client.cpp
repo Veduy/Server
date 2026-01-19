@@ -41,6 +41,7 @@ int main()
 			else
 			{
 				std::cout << "Error: " << res->status << std::endl;
+				std::cout << "Response: " << res->body << std::endl;
 			}
 		}
 	}
