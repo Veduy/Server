@@ -88,73 +88,119 @@ int main()
     const std::string db_pass = "qweasd123";
     const std::string db_schema = "membership";
 
-    svr.Get("/api/login", [&](const httplib::Request& req, httplib::Response& res)
+    svr.Get("/api/login", [&](const httplib::Request& req, httplib::Response& res) 
+    {
+        /*std::string user_id = req.get_param_value("user_id");
+        std::string passwd = req.get_param_value("passwd");*/
+        std::string user_id = "admin";
+        std::string passwd = "1234";
+
+        if (user_id.empty() || passwd.empty())
         {
-            /*std::string user_id = req.get_param_value("user_id");
-            std::string passwd = req.get_param_value("passwd");*/
-            std::string user_id = "admin";
-            std::string passwd = "1234";
+            res.set_content(CreateJsonResponse("", false), "application/json");
+            return;
+        }
 
-            if (user_id.empty() || passwd.empty())
+        try
+        {
+            sql::Driver* Driver = get_driver_instance();
+            sql::Connection* Connection(Driver->connect(db_url, db_user, db_pass));
+            Connection->setSchema(db_schema);
+
+            // Using SHA2(?, 256) for password comparison as per Order.txt
+            sql::PreparedStatement* PreparedStatement(Connection->prepareStatement(
+                "SELECT `id`, `name` FROM user WHERE `user_id` = ? AND passwd = SHA2(?, 256);"
+            ));
+
+            PreparedStatement->setString(1, user_id);
+            PreparedStatement->setString(2, passwd);
+
+            sql::ResultSet* res_db(PreparedStatement->executeQuery());
+
+            if (res_db->next())
             {
-                res.set_content(CreateJsonResponse("", false), "application/json");
-                return;
-            }
+                int idx = res_db->getInt("id");
+                std::string name = res_db->getString("name");
 
-            try {
-                sql::Driver* Driver = get_driver_instance();
-                sql::Connection* Connection(Driver->connect(db_url, db_user, db_pass));
-                Connection->setSchema(db_schema);
+                // 접속을 요청한 클라에게 보내는 메시지.
+                res.set_content(CreateJsonResponse(name, true), "application/json");
 
-                // Using SHA2(?, 256) for password comparison as per Order.txt
-                sql::PreparedStatement* PreparedStatement(Connection->prepareStatement(
-                    "SELECT `id`, `name` FROM user WHERE `user_id` = ? AND passwd = SHA2(?, 256);"
-                ));
+                // 클라에서 웹서버에 로그인 요청후 웹서버에서 DB에서 정보확인한 이후.
+                // 이때 GatewayServer에 누가 접속했다고 알려야지
+                flatbuffers::FlatBufferBuilder Builder;
 
-                PreparedStatement->setString(1, user_id);
-                PreparedStatement->setString(2, passwd);
+                auto ServerLoginData = UserEvents::CreateServerLogin(Builder, (int32_t)idx, Builder.CreateString(name));
 
-                sql::ResultSet* res_db(PreparedStatement->executeQuery());
+                auto EventData = UserEvents::CreateEventData(Builder, 0, UserEvents::EventType_ServerLogin, ServerLoginData.Union());
 
-                if (res_db->next())
+                Builder.Finish(EventData);
+
+                int PacketSize = Builder.GetSize() + sizeof(int);
+                int SentBytes = SendPacket(ServerSocket, Builder);
+                if (SentBytes >= PacketSize)
                 {
-                    int idx = res_db->getInt("id");
-                    std::string name = res_db->getString("name");
-                    res.set_content(CreateJsonResponse(name, true), "application/json");
+                    std::cout << "Success sending packet" << std::endl;
+                }
+            }
 
-                    // 클라에서 웹서버에 로그인 요청후 웹서버에서 DB에서 정보확인한 이후.
-                    // 이때 GatewayServer에 누가 접속했다고 알려야지
-                    flatbuffers::FlatBufferBuilder Builder;
-
-                    auto ServerLoginData = UserEvents::CreateServerLogin(Builder, (int32_t)idx, Builder.CreateString(name));
-
-                    auto EventData = UserEvents::CreateEventData(Builder, 0, UserEvents::EventType_ServerLogin, ServerLoginData.Union());
-
-                    Builder.Finish(EventData);
-
-                    int PacketSize = Builder.GetSize() + sizeof(int);
-                    int SentBytes = SendPacket(ServerSocket, Builder);
-                    if (SentBytes >= PacketSize)
-                    {
-                        std::cout << "Success sending packet" << std::endl;
-                    }                
-            } 
-            else 
+            else
             {
                 res.set_content(CreateJsonResponse("", false), "application/json");
             }
-        } 
-        catch (sql::SQLException& e) 
+        }
+        catch (sql::SQLException& e)
         {
             std::cerr << "MySQL Error: " << e.what() << std::endl;
             res.status = 500;
             res.set_content("{\"error\": \"Database error\"}", "application/json");
-        } 
-        catch (std::exception& e) 
+        }
+        catch (std::exception& e)
         {
             std::cerr << "General Error: " << e.what() << std::endl;
             res.status = 500;
             res.set_content("{\"error\": \"Internal server error\"}", "application/json");
+        }
+    });
+
+    svr.Get("/api/check/ranking", [&](const httplib::Request& req, httplib::Response& res)
+    {
+        try
+        {
+            sql::Driver* Driver = get_driver_instance();
+            sql::Connection* Connection(Driver->connect(db_url, db_user, db_pass));
+            Connection->setSchema(db_schema);
+
+            sql::PreparedStatement* PreparedStatement(Connection->prepareStatement(
+                "SELECT RANK() OVER(ORDER BY score DESC) AS ranking, user_name,score FROM ranking ORDER BY ranking LIMIT 10"));
+
+            sql::ResultSet* res_db(PreparedStatement->executeQuery());
+
+            // JSON 배열 생성
+            std::string json_response = "[";
+            bool first = true;
+            while (res_db->next())
+            {
+                if (!first) json_response += ",";
+                json_response += "{";
+                //json_response += "\"ranking\":" + std::to_string(res_db->getInt("ranking")) + ",";
+                json_response += "\"name\":\"" + res_db->getString("user_name") + "\",";
+                json_response += "\"score\":" + std::to_string(res_db->getInt("score"));
+                json_response += "}";
+                first = false;
+            }
+            json_response += "]";
+
+            res.set_content(json_response, "application/json");
+
+            delete res_db;
+            delete PreparedStatement;
+            delete Connection;
+        }
+        catch (sql::SQLException& e)
+        {
+            std::cerr << "MySQL Error (Ranking): " << e.what() << std::endl;
+            res.status = 500;
+            res.set_content("{\"error\": \"Database error during ranking fetch\"}", "application/json");
         }
     });
   

@@ -23,5 +23,8 @@
     <ClInclude Include="httplib.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="WebServer.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>
