@@ -9,6 +9,7 @@
 #include <iostream>
 
 #include "Common.h"
+#include "json.hpp"
 #include "httplib.h"
 
 #include <thread>
@@ -22,6 +23,8 @@
 
 #pragma comment(lib, "mysqlcppconn.lib")
 #pragma comment(lib, "Common.lib")
+
+using json = nlohmann::json;
 
 void ReceiveMatchResult(SOCKET ServerSocket)
 {
@@ -88,6 +91,10 @@ int main()
     const std::string db_pass = "qweasd123";
     const std::string db_schema = "membership";
 
+    sql::Driver* Driver = get_driver_instance();
+    sql::Connection* Connection(Driver->connect(db_url, db_user, db_pass));
+    Connection->setSchema(db_schema);
+
     svr.Get("/api/login", [&](const httplib::Request& req, httplib::Response& res) 
     {
         /*std::string user_id = req.get_param_value("user_id");
@@ -103,10 +110,6 @@ int main()
 
         try
         {
-            sql::Driver* Driver = get_driver_instance();
-            sql::Connection* Connection(Driver->connect(db_url, db_user, db_pass));
-            Connection->setSchema(db_schema);
-
             // Using SHA2(?, 256) for password comparison as per Order.txt
             sql::PreparedStatement* PreparedStatement(Connection->prepareStatement(
                 "SELECT `id`, `name` FROM user WHERE `user_id` = ? AND passwd = SHA2(?, 256);"
@@ -166,35 +169,30 @@ int main()
     {
         try
         {
-            sql::Driver* Driver = get_driver_instance();
-            sql::Connection* Connection(Driver->connect(db_url, db_user, db_pass));
-            Connection->setSchema(db_schema);
-
             sql::PreparedStatement* PreparedStatement(Connection->prepareStatement(
                 "SELECT RANK() OVER(ORDER BY score DESC) AS ranking, user_name,score FROM ranking ORDER BY ranking LIMIT 10"));
 
             sql::ResultSet* res_db(PreparedStatement->executeQuery());
 
-            // JSON 배열 생성
-            std::string json_response = "[";
+            // JSON 문자열
+            std::string JsonString = R"()";
+
             bool first = true;
             while (res_db->next())
             {
-                if (!first) json_response += ",";
-                json_response += "{";
+                if (!first) JsonString += ",";
+                JsonString += "{";
                 //json_response += "\"ranking\":" + std::to_string(res_db->getInt("ranking")) + ",";
-                json_response += "\"name\":\"" + res_db->getString("user_name") + "\",";
-                json_response += "\"score\":" + std::to_string(res_db->getInt("score"));
-                json_response += "}";
+                JsonString += "\"name\":\"" + res_db->getString("user_name") + "\",";
+                JsonString += "\"score\":" + std::to_string(res_db->getInt("score"));
+                JsonString += "}";
                 first = false;
             }
-            json_response += "]";
+            JsonString += "";
 
-            res.set_content(json_response, "application/json");
+            res.set_content(JsonString, "application/json");
 
-            delete res_db;
             delete PreparedStatement;
-            delete Connection;
         }
         catch (sql::SQLException& e)
         {
