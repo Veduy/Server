@@ -2,8 +2,11 @@
 
 #include "Common.h"
 #include "httplib.h"
+#include "json.hpp"
 
 #pragma comment(lib, "Common.lib")
+
+using json = nlohmann::json;
 
 int main()
 {
@@ -21,7 +24,20 @@ int main()
 		{
 			if (res->status == 200)
 			{
-				std::cout << "Response: " << res->body << std::endl;
+				// JSON 파싱
+				try {
+					json j = json::parse(res->body);
+					std::cout << "Response: " << j.dump(4) << std::endl;
+					if (j.contains("name")) 
+					{
+						std::string name = j["name"];
+						std::cout << "Login User: " << name << std::endl;
+					}
+				}
+				catch (json::parse_error& e) 
+				{
+					std::cerr << "JSON 파싱 실패: " << e.what() << std::endl;
+				}
 			}
 			else
 			{
@@ -37,6 +53,24 @@ int main()
 			if (res->status == 200)
 			{
 				std::cout << "Response: " << res->body << std::endl;
+
+				// JSON parsing
+				try {
+					json Ranking = json::parse(res->body);
+					for (const auto& Row : Ranking)
+					{
+						std::string rank = Row["rank"];
+						std::string name = Row["name"];
+						std::string score = Row["score"];
+						std::cout << "[" << rank << "위] " << name << " - 점수: " << score << std::endl;
+						// 언리얼에서 UI Text 설정.
+					}
+				}
+				catch (json::parse_error& e) 
+				{
+					std::cerr << "JSON 파싱 실패: " << e.what() << std::endl;
+				}
+
 			}
 			else
 			{

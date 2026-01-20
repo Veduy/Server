@@ -195,6 +195,8 @@ int main()
                 Ranking.push_back(Row);
             }
             
+            //auto j3 = json::parse(Ranking);
+
             res.set_content(Ranking.dump(), "application/json");
 
             delete PreparedStatement;
