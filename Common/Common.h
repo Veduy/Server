@@ -13,6 +13,7 @@
 
 #pragma comment(lib, "ws2_32")
 
+// 서버가 쓰레드를 여러개 가지고 있고, 필요할때마다 꺼내 쓰는 방식으로 설계한다면?
 int SendPacket(SOCKET Socket, flatbuffers::FlatBufferBuilder& Builder);
 int RecvPacket(SOCKET Socket, char* Buffer);
 

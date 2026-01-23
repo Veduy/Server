@@ -92,8 +92,22 @@ int main()
     const std::string db_schema = "membership";
 
     sql::Driver* Driver = get_driver_instance();
-    sql::Connection* Connection(Driver->connect(db_url, db_user, db_pass));
-    Connection->setSchema(db_schema);
+    sql::Connection* Connection = nullptr; 
+
+    try
+    {
+        Connection = Driver->connect(db_url, db_user, db_pass);
+        Connection->setSchema(db_schema);
+    }
+    catch (sql::SQLException& e)
+    {
+        std::cout << "[DB CONNECT FAIL]\n";
+        std::cout << "Error: " << e.what() << std::endl;
+        std::cout << "ErrorCode: " << e.getErrorCode() << std::endl;
+        std::cout << "SQLState: " << e.getSQLState() << std::endl;
+
+        Connection = nullptr;
+    }
 
     svr.Get("/api/login", [&](const httplib::Request& req, httplib::Response& res) 
     {
