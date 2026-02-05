@@ -33,11 +33,11 @@ int SendPacket(SOCKET Socket, flatbuffers::FlatBufferBuilder& Builder)
     return TotalSent;
 }
 
-int RecvPacket(SOCKET Socket, char* Buffer)
+int RecvPacket(SOCKET Socket, char* Buffer, int BufferSize)
 {
     int PayloadSize = 0;
 
-    // 1. payload size ¼ö½Å (4 bytes)
+    // 1. payload size (4 bytes)
     int Received = 0;
     while (Received < sizeof(int))
     {
@@ -53,7 +53,12 @@ int RecvPacket(SOCKET Socket, char* Buffer)
 
     PayloadSize = ntohl(PayloadSize);
 
-    // 2. payload ¼ö½Å
+    if (PayloadSize <= 0 || PayloadSize > BufferSize)
+    {
+        return -1;
+    }
+
+    // 2. payload ï¿½ï¿½ï¿½ï¿½
     Received = 0;
     while (Received < PayloadSize)
     {
@@ -67,7 +72,7 @@ int RecvPacket(SOCKET Socket, char* Buffer)
         Received += Recvbytes;
     }
 
-    // ¼º°ø ½Ã payload Å©±â ¹ÝÈ¯
+    // ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ payload Å©ï¿½ï¿½ ï¿½ï¿½È¯
     return PayloadSize;
 }
 
@@ -77,5 +82,21 @@ std::string CreateJsonResponse(const std::string& name, bool result)
     {
         return "{\"result\": false}";
     }
-    return "{\"name\": \"" + name + "\", \"result\": " + (result ? "true" : "false") + "}";
+
+    std::string escaped;
+    escaped.reserve(name.size());
+    for (char c : name)
+    {
+        switch (c)
+        {
+        case '"':  escaped += "\\\""; break;
+        case '\\': escaped += "\\\\"; break;
+        case '\n': escaped += "\\n"; break;
+        case '\r': escaped += "\\r"; break;
+        case '\t': escaped += "\\t"; break;
+        default:   escaped += c; break;
+        }
+    }
+
+    return "{\"name\": \"" + escaped + "\", \"result\": " + (result ? "true" : "false") + "}";
 }

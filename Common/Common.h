@@ -13,9 +13,9 @@
 
 #pragma comment(lib, "ws2_32")
 
-// ¼­¹ö°¡ ¾²·¹µå¸¦ ¿©·¯°³ °¡Áö°í ÀÖ°í, ÇÊ¿äÇÒ¶§¸¶´Ù ²¨³» ¾²´Â ¹æ½ÄÀ¸·Î ¼³°èÇÑ´Ù¸é?
+// ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½å¸¦ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½Ö°ï¿½, ï¿½Ê¿ï¿½ï¿½Ò¶ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Ñ´Ù¸ï¿½?
 int SendPacket(SOCKET Socket, flatbuffers::FlatBufferBuilder& Builder);
-int RecvPacket(SOCKET Socket, char* Buffer);
+int RecvPacket(SOCKET Socket, char* Buffer, int BufferSize);
 
 // Helper function to create JSON response (minimal implementation)
 std::string CreateJsonResponse(const std::string& name, bool result);

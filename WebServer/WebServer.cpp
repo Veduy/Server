@@ -7,12 +7,12 @@
 #include <Windows.h>
 #include <string>
 #include <iostream>
+#include <mutex>
+#include <memory>
 
 #include "Common.h"
 #include "json.hpp"
 #include "httplib.h"
-
-#include <thread>
 
 #include "mysql-connector/include/jdbc/mysql_connection.h"
 #include "mysql-connector/include/jdbc/cppconn/driver.h"
@@ -26,62 +26,10 @@
 
 using json = nlohmann::json;
 
-void ReceiveMatchResult(SOCKET ServerSocket)
+int main()
 {
-    char Buffer[4096] = { 0 };
-    while (true)
-    {
-        int RecvBytes = RecvPacket(ServerSocket, Buffer);
-        if (RecvBytes > 0)
-        {
-            auto MatchData = MatchingEvents::GetMatchData(Buffer);
-            std::cout << "\n===== Match Found! =====" << std::endl;
-            auto users = MatchData->users();
-            for (unsigned int i = 0; i < users->size(); ++i)
-            {
-                auto user = users->Get(i);
-                std::cout << "User " << i + 1 << ": ID(" << user->idx() << "), Name(" << user->name()->c_str() << ")" << std::endl;
-            }
-            std::cout << "========================\n" << std::endl;
-        }
-        else if (RecvBytes <= 0)
-        {
-            std::cout << "GatewayServer disconnected" << std::endl;
-            break;
-        }
-    }
-}
-
-int main() 
-{
-    //GatewayServer와 소켓 연결.
     WSAData WsaData;
     WSAStartup(MAKEWORD(2, 2), &WsaData);
-
-    SOCKET ServerSocket = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
-    SOCKADDR_IN ServerSockAddr;
-
-    memset(&ServerSockAddr, 0, sizeof(ServerSockAddr));
-    ServerSockAddr.sin_family = AF_INET;
-    ServerSockAddr.sin_addr.S_un.S_addr = inet_addr("127.0.0.1");
-    ServerSockAddr.sin_port = htons(18488);
-
-    int ConnectResult = connect(ServerSocket, (SOCKADDR*)&ServerSockAddr, sizeof(ServerSockAddr));
-
-    if (ConnectResult == SOCKET_ERROR)
-    {
-        int Error = WSAGetLastError();
-        std::cout << "GatewayServer Connect Error: " << Error << std::endl;
-    }
-    else
-    {
-        std::cout << "Connected to GatewayServer." << std::endl;
-        std::thread ReceiveThread(ReceiveMatchResult, ServerSocket);
-
-        //이 스레드는 독립적으로 실행할거임 -> 객체가 없어져도 상관x 
-        // std::thread객체는 소멸될때, join()되거나, detach()되어 있지 않으면 프로그램은 강제로 종료.
-        ReceiveThread.detach();
-    }
 
     httplib::Server svr;
     
@@ -92,7 +40,8 @@ int main()
     const std::string db_schema = "membership";
 
     sql::Driver* Driver = get_driver_instance();
-    sql::Connection* Connection = nullptr; 
+    sql::Connection* Connection = nullptr;
+    std::mutex DbMutex;
 
     try
     {
@@ -109,12 +58,24 @@ int main()
         Connection = nullptr;
     }
 
-    svr.Get("/api/login", [&](const httplib::Request& req, httplib::Response& res) 
+    svr.Post("/api/login", [&](const httplib::Request& req, httplib::Response& res)
     {
-        /*std::string user_id = req.get_param_value("user_id");
-        std::string passwd = req.get_param_value("passwd");*/
-        std::string user_id = "admin";
-        std::string passwd = "1234";
+        // 언리얼에서 JSON으로 ID, Passwd를 받음
+        json RequestBody;
+        try
+        {
+            RequestBody = json::parse(req.body);
+        }
+        catch (json::parse_error& e)
+        {
+            std::cerr << "JSON Parse Error: " << e.what() << std::endl;
+            res.status = 400;
+            res.set_content(CreateJsonResponse("", false), "application/json");
+            return;
+        }
+
+        std::string user_id = RequestBody.value("user_id", "");
+        std::string passwd = RequestBody.value("passwd", "");
 
         if (user_id.empty() || passwd.empty())
         {
@@ -122,47 +83,40 @@ int main()
             return;
         }
 
+        std::lock_guard<std::mutex> lock(DbMutex);
+
+        if (!Connection)
+        {
+            res.status = 503;
+            res.set_content("{\"error\": \"Database not available\"}", "application/json");
+            return;
+        }
+
         try
         {
-            // Using SHA2(?, 256) for password comparison as per Order.txt
-            sql::PreparedStatement* PreparedStatement(Connection->prepareStatement(
+            // TODO: SHA2 without per-user salt is vulnerable to rainbow table attacks. Consider bcrypt or adding a salt column.
+            std::unique_ptr<sql::PreparedStatement> PreparedStatement(Connection->prepareStatement(
                 "SELECT `id`, `name` FROM user WHERE `user_id` = ? AND passwd = SHA2(?, 256);"
             ));
 
             PreparedStatement->setString(1, user_id);
             PreparedStatement->setString(2, passwd);
 
-            sql::ResultSet* res_db(PreparedStatement->executeQuery());
+            std::unique_ptr<sql::ResultSet> res_db(PreparedStatement->executeQuery());
 
             if (res_db->next())
             {
-                int idx = res_db->getInt("id");
                 std::string name = res_db->getString("name");
 
-                // 접속을 요청한 클라에게 보내는 메시지.
+                // 조회 결과를 바로 언리얼로 HTTP 응답
+                // 언리얼에서 name(String), result(Boolean)으로 받음
                 res.set_content(CreateJsonResponse(name, true), "application/json");
-
-                // 클라에서 웹서버에 로그인 요청후 웹서버에서 DB에서 정보확인한 이후.
-                // 이때 GatewayServer에 누가 접속했다고 알려야지
-                flatbuffers::FlatBufferBuilder Builder;
-
-                auto ServerLoginData = UserEvents::CreateServerLogin(Builder, (int32_t)idx, Builder.CreateString(name));
-
-                auto EventData = UserEvents::CreateEventData(Builder, 0, UserEvents::EventType_ServerLogin, ServerLoginData.Union());
-
-                Builder.Finish(EventData);
-
-                int PacketSize = Builder.GetSize() + sizeof(int);
-                int SentBytes = SendPacket(ServerSocket, Builder);
-                if (SentBytes >= PacketSize)
-                {
-                    std::cout << "Success sending packet" << std::endl;
-                }
+                std::cout << "Login Success: " << name << std::endl;
             }
-
             else
             {
                 res.set_content(CreateJsonResponse("", false), "application/json");
+                std::cout << "Login Failed: user_id=" << user_id << std::endl;
             }
         }
         catch (sql::SQLException& e)
@@ -181,23 +135,24 @@ int main()
 
     svr.Get("/api/check/ranking", [&](const httplib::Request& req, httplib::Response& res)
     {
+        std::lock_guard<std::mutex> lock(DbMutex);
+
+        if (!Connection)
+        {
+            res.status = 503;
+            res.set_content("{\"error\": \"Database not available\"}", "application/json");
+            return;
+        }
+
         try
         {
-            sql::PreparedStatement* PreparedStatement(Connection->prepareStatement(
+            std::unique_ptr<sql::PreparedStatement> PreparedStatement(Connection->prepareStatement(
                 "SELECT RANK() OVER(ORDER BY score DESC) AS ranking, user_name,score FROM ranking ORDER BY ranking LIMIT 10"));
 
-            sql::ResultSet* res_db(PreparedStatement->executeQuery());
+            std::unique_ptr<sql::ResultSet> res_db(PreparedStatement->executeQuery());
 
-            /*
-            * {
-                  "name": "John",
-                  "age": 30,
-                  "city": "New York"
-               }
-            */
-            // JSON 문자열
             json Ranking;
-         
+
             while (res_db->next())
             {
                 json Row =
@@ -208,12 +163,8 @@ int main()
                 };
                 Ranking.push_back(Row);
             }
-            
-            //auto j3 = json::parse(Ranking);
 
             res.set_content(Ranking.dump(), "application/json");
-
-            delete PreparedStatement;
         }
         catch (sql::SQLException& e)
         {
@@ -227,7 +178,9 @@ int main()
     
 
     svr.listen("0.0.0.0", 8080); //블로킹 상태 진입함.
-    //GateServer로부터 Packet받는 쓰레드 추가.
+
+    delete Connection;
+    WSACleanup();
 
     return 0;
 }

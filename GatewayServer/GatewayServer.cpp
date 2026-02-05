@@ -42,6 +42,11 @@ int main()
 
 		fd_set WorkingReadSet = MasterReadSet;
 		int SelectCount = select(0, &WorkingReadSet, nullptr, nullptr, &TimeOut);
+		if (SelectCount == SOCKET_ERROR)
+		{
+			std::cerr << "select() error: " << WSAGetLastError() << std::endl;
+			break;
+		}
 		if (SelectCount == 0)
 		{
 			// 타임아웃
@@ -74,7 +79,7 @@ int main()
 				{
 					// 패킷처리
 					char Buffer[4096] = { 0 };
-					int RecvBytes = RecvPacket(SelectedSocket, Buffer);
+					int RecvBytes = RecvPacket(SelectedSocket, Buffer, sizeof(Buffer));
 
 					if (RecvBytes <= 0)
 					{
