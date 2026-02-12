@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 
 #define NOMINMAX
 
@@ -13,7 +13,6 @@
 
 #pragma comment(lib, "ws2_32")
 
-// ������ �����带 ������ ������ �ְ�, �ʿ��Ҷ����� ���� ���� ������� �����Ѵٸ�?
 int SendPacket(SOCKET Socket, flatbuffers::FlatBufferBuilder& Builder);
 int RecvPacket(SOCKET Socket, char* Buffer, int BufferSize);
 
